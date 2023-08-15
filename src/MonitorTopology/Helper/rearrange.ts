@@ -71,14 +71,14 @@ export const rearrangeMonitors = ({
   selectedMonitor.x = updatedX;
   selectedMonitor.y = updatedY;
 
-  for (const monitor of monitors) {
-    if (monitor.connector !== selectedMonitor.connector) {
-      const overlap = monitorOverlap(selectedMonitor, monitor);
-      if (overlap) {
-        // console.log({ overlap, monitor })
-      }
-    }
-  }
+  // for (const monitor of monitors) {
+  //   if (monitor.connector !== selectedMonitor.connector) {
+  //     const overlap = monitorOverlap(selectedMonitor, monitor);
+  //     if (overlap) {
+  //       // console.log({ overlap, monitor })
+  //     }
+  //   }
+  // }
 
 
   const nearbyMonitors = detectNearbyMonitors(selectedMonitor, monitors);
