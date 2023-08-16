@@ -2,7 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import StarIcon from "@mui/icons-material/Star";
 import { Box } from "@mui/material";
 // import MonitorIcon from "../../assets/monitor-icon.svg";
-import React, { FC } from "react";
+import { FC } from "react";
 import Typography from "../../Typography";
 import { getHeightAndWidth } from "../Helper/dimensions";
 import { IMonitorItemProps } from "../types";
@@ -18,6 +18,7 @@ const MonitorItem: FC<IMonitorItemProps> = ({
   sx = {},
   testid = "",
   handleSelect,
+  status = false,
 }) => {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: monitorId,
@@ -25,6 +26,56 @@ const MonitorItem: FC<IMonitorItemProps> = ({
   });
 
   const { height, width } = getHeightAndWidth(monitorItem);
+
+  if (testid === ''){
+    return <Box
+    data-testid={`${testid}`}
+    component={"span"}
+    sx={{
+      cursor: "grab",
+      alignItems: "center",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+      left: 0,
+      top: 0,
+      position: "absolute",
+      transition: "box-shadow 300ms ease",
+    }}
+  >
+    <Box
+      sx={{
+        alignItems: "center",
+        backgroundColor: status ? "#7a0f39" : (isSelected ? "#01838B" : "white"),
+        border: `solid 1px ${isSelected ? "#16484E" : "#C7C9D1"}`,
+        borderRadius: "4px",
+        color: "#C7C9D1",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "center",
+        height: `${height}px`,
+        width: `${width}px`,
+        zIndex: 1,
+      }}
+    >
+    "MonitorIcon"
+      <Box>
+        <Typography
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: isSelected ? "#C7C9D1" : "#101112",
+            paddingTop: "4px",
+          }}
+        >
+            {monitorItem.isPrimary && <StarIcon sx={{ fontSize: "small" }} />}
+            {monitorItem.productName}
+        </Typography>
+      </Box>
+    </Box>
+  </Box>
+  }
 
   return (
     <Box

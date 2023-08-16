@@ -1,55 +1,39 @@
 import { Coordinates } from "@dnd-kit/utilities";
 import { IMonitorItem } from "../types";
 import { getHeightAndWidth } from "./dimensions";
-import { monitorOverlap } from "./overlap";
 
-
-const detectNearbyMonitors = (selectedMonitor: IMonitorItem, listOfMonitors: IMonitorItem[]) => {
-  const nearbyMonitors = {
-    top: null as IMonitorItem | null,
-    bottom: null as IMonitorItem | null,
-    left: null as IMonitorItem | null,
-    right: null as IMonitorItem | null,
-  };
-
-  for (const monitor of listOfMonitors) {
-    if (monitor.connector !== selectedMonitor.connector) {
-      const distanceX = Math.abs(monitor.x - selectedMonitor.x);
-      const distanceY = Math.abs(monitor.y - selectedMonitor.y);
-
-      // console.log({ distanceX, distanceY })
-
-      //sample output
-      // { distanceX: 449.4765625, distanceY: 115.27734375 }
-      // { distanceX: 257.4765625, distanceY: 115.27734375 }
-      // { distanceX: 65.4765625, distanceY: 115.27734375 }
-
-      if (monitor.x < selectedMonitor.x) {
-        if (!nearbyMonitors.left || distanceX < Math.abs(nearbyMonitors.left.x - selectedMonitor.x)) {
-          nearbyMonitors.left = monitor;
+const getY = (monitors: IMonitorItem[], current: IMonitorItem) => {
+  const { width : currentWidth } = getHeightAndWidth(current);
+  let res = 0;
+  for (const monitor of monitors){
+    const { width, height } = getHeightAndWidth(monitor);
+    if ((current.x <= monitor.x && current.x + currentWidth > monitor.x) ||
+        (current.x < monitor.x + width && current.x + currentWidth >= monitor.x + width) ||
+        (current.x > monitor.x && current.x + currentWidth < monitor.x + width)){
+          if (res < monitor.y + height){
+            res = monitor.y + height;
+          }
         }
-      } else if (monitor.x > selectedMonitor.x) {
-        if (!nearbyMonitors.right || distanceX < Math.abs(nearbyMonitors.right.x - selectedMonitor.x)) {
-          nearbyMonitors.right = monitor;
-        }
-      }
-
-      if (monitor.y < selectedMonitor.y) {
-        if (!nearbyMonitors.top || distanceY < Math.abs(nearbyMonitors.top.y - selectedMonitor.y)) {
-          nearbyMonitors.top = monitor;
-        }
-      } else if (monitor.y > selectedMonitor.y) {
-        if (!nearbyMonitors.bottom || distanceY < Math.abs(nearbyMonitors.bottom.y - selectedMonitor.y)) {
-          nearbyMonitors.bottom = monitor;
-        }
-      }
-
-    }
   }
-
-  return nearbyMonitors;
+  return res;
 }
 
+const getX = (monitors: IMonitorItem[], current: IMonitorItem, y: number) => {
+  const { height : currentHeight } = getHeightAndWidth(current);
+  let res = 0;
+  for (const monitor of monitors){
+    if (monitor.x > current.x) continue;
+    const { width, height } = getHeightAndWidth(monitor);
+    if ((y <= monitor.y && y + currentHeight > monitor.y) ||
+        (y < monitor.y + height && y + currentHeight >= monitor.y + height) ||
+        (y > monitor.y && y + currentHeight < monitor.y + height)){
+          if (res < monitor.x + width){
+            res = monitor.x + width;
+          }
+        }
+  }
+  return res;
+}
 /**
  * handle monitor positions
  *
@@ -64,44 +48,43 @@ export const rearrangeMonitors = ({
   monitors: IMonitorItem[];
   coordinates: Coordinates;
 }): IMonitorItem[] => {
-  const selectedMonitorDimensions = getHeightAndWidth(selectedMonitor);
+  //console.log(coordinates, selectedMonitor, monitors);
+  const originX = selectedMonitor.x;
+  const originY = selectedMonitor.y;
   const updatedX = selectedMonitor.x + coordinates.x;
   const updatedY = selectedMonitor.y + coordinates.y;
+
+  const {width: selectedWidth, height: selectedHeight} = getHeightAndWidth(selectedMonitor);
 
   selectedMonitor.x = updatedX;
   selectedMonitor.y = updatedY;
 
-  // for (const monitor of monitors) {
-  //   if (monitor.connector !== selectedMonitor.connector) {
-  //     const overlap = monitorOverlap(selectedMonitor, monitor);
-  //     if (overlap) {
-  //       // console.log({ overlap, monitor })
-  //     }
-  //   }
-  // }
+  const updatedmonitors: IMonitorItem[] = [];
+  const othermonitors: IMonitorItem[] = [];
+
+  for (const monitor of monitors) {
+    if (monitor.connector !== selectedMonitor.connector && (monitor.x < originX + selectedWidth&& monitor.y < originY + selectedHeight))
+      updatedmonitors.push(monitor);
+    else if (monitor.connector !== selectedMonitor.connector){
+      othermonitors.push(monitor);
+    }
+  }
+
+  othermonitors.push(selectedMonitor);
+
+  othermonitors.sort((a, b) => a.y - b.y);
 
 
-  const nearbyMonitors = detectNearbyMonitors(selectedMonitor, monitors);
+  for (const monitor of othermonitors) {
+    const newMonitor = {...monitor};
 
-  // console.log({ nearbyMonitors, selectedMonitor, selectedMonitorDimensions })
+    const y = getY(updatedmonitors, newMonitor);
+    const x = getX(updatedmonitors, newMonitor, y);
 
-  // Adjust the selected monitor's position if necessary
-  // if (nearbyMonitors.right) {
-  //   // Adjust the X position of the selected monitor
-  //   selectedMonitor.x = nearbyMonitors.right.x - selectedMonitorDimensions.width;
-  // } else if (nearbyMonitors.left) {
-  //   selectedMonitor.x = nearbyMonitors.left.x + getHeightAndWidth(nearbyMonitors.left).width;
-  // }
+    updatedmonitors.push({...newMonitor, x, y});
+  }
 
-  // if (nearbyMonitors.bottom) {
-  //   // Adjust the Y position of the selected monitor
-  //   selectedMonitor.y = nearbyMonitors.bottom.y - selectedMonitorDimensions.height;
-  // } else if (nearbyMonitors.top) {
-  //   selectedMonitor.y = nearbyMonitors.top.y + getHeightAndWidth(nearbyMonitors.top).height;
-  // }
-
-
-  return monitors
+  return updatedmonitors
 };
 
 // // Adjust the selected monitor's position if necessary

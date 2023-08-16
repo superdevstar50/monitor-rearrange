@@ -1,12 +1,13 @@
-import { SCALE_FACTOR } from "..";
 import { IMonitorItem } from "../types";
+
+import {state} from './utils';
 
 export const getHeightAndWidth = (monitor: IMonitorItem) => {
   const [width, height] = monitor.currentMode.split("@")[0].split("x").map(Number);
   if (monitor.orientation === "portrait") {
-    return { width: height * SCALE_FACTOR, height: width * SCALE_FACTOR };
+    return { width: height * state.scale, height: width * state.scale };
   } else {
-    return { width: width * SCALE_FACTOR, height: height * SCALE_FACTOR };
+    return { width: width * state.scale, height: height * state.scale };
   }
 };
 

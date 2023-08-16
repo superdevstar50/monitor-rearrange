@@ -12,6 +12,7 @@ export interface IMonitorItem {
   vendor: string;
   x: number;
   y: number;
+  scale?: number;
 }
 
 export interface IMonitorItemProps {
@@ -21,6 +22,7 @@ export interface IMonitorItemProps {
   sx?: SxProps;
   testid?: string;
   handleSelect?: (monitorId: IMonitorItem["connector"]) => void;
+  status?: boolean;
 }
 
 interface IMonitorTopologyProps {

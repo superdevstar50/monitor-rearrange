@@ -1,14 +1,14 @@
 /* eslint-disable react/prop-types */
-import { DndContext, DragEndEvent, Modifier } from "@dnd-kit/core";
+import { DndContext, DragEndEvent, DragOverlay, Modifier } from "@dnd-kit/core";
 import { Box } from "@mui/material";
-import React, { FC, useEffect, useRef, useState } from "react";
+import { FC, useEffect, useRef, useState } from "react";
 import { getContainerHeightAndWidth } from "./Helper/dimensions";
 import { rearrangeMonitors } from "./Helper/rearrange";
 import MonitorItem from "./MonitorItem";
 import { IMonitorItem, IMonitorTopologyProps } from "./types";
-import { Transform } from "@dnd-kit/utilities";
 import { restrictToOverlapOtherRects } from "./Helper/restrict";
-import { snapCenterToCursor } from "@dnd-kit/modifiers";
+
+import {state, isOverLapping, isIntersect} from "./Helper/utils";
 
 export const SCALE_FACTOR = 0.1;
 
@@ -17,6 +17,8 @@ export const SCALE_FACTOR = 0.1;
  *
  * @returns {FC} the monitor topology component
  */
+
+
 const MonitorTopology: FC<IMonitorTopologyProps> = ({
   monitorTopologyData = [],
   onRearrange,
@@ -29,15 +31,44 @@ const MonitorTopology: FC<IMonitorTopologyProps> = ({
   const [selectMonitor, setSelectMonitor] = useState<IMonitorItem["connector"]>(
     defaultSelectedMonitor || monitors[0].connector
   );
+  const [draggingMonitor, setDraggingMonitor] = useState<IMonitorItem | undefined>();
+
+  const [isOver, setIsOver] = useState<boolean>(false);
+  const [isOver1, setIsOver1] = useState<boolean>(false);
+
+  const [scale, setScale] = useState(0);
+
   const containerRef = useRef<HTMLDivElement>(null);
+
   const { containerHeight, containerWidth } =
     getContainerHeightAndWidth(monitors);
 
   useEffect(() => {
+    function handleResize() {
+      setScale(state.scale);    
+      state.scale = window.innerWidth / 7 / 1920;
+    }
+
+    window.addEventListener('resize', handleResize)
+  }, [])
+
+  useEffect(() => {
+    const updatedMonitors = monitors.map((monitor) => ({
+      ...monitor,
+      x: monitor.scale && monitor.x * state.scale / monitor.scale,
+      y: monitor.scale && monitor.y * state.scale / monitor.scale,
+      scale: state.scale
+    }));
+
+    setMonitors(updatedMonitors as IMonitorItem[]);
+  }, [scale]);
+
+  useEffect(() => {
     const updatedMonitors = monitorTopologyData.map((monitor) => ({
       ...monitor,
-      x: monitor.x * SCALE_FACTOR,
-      y: monitor.y * SCALE_FACTOR,
+      x: monitor.x * state.scale,
+      y: monitor.y * state.scale,
+      scale: state.scale
     }));
 
     setMonitors(updatedMonitors as IMonitorItem[]);
@@ -61,6 +92,7 @@ const MonitorTopology: FC<IMonitorTopologyProps> = ({
   const handleSelect = (monitorId: IMonitorItem["connector"]) => {
     setSelectMonitor(monitorId);
   };
+
 
   const restrictModifiers: Modifier = (props) => {
     const { transform, active } = props;
@@ -88,19 +120,54 @@ const MonitorTopology: FC<IMonitorTopologyProps> = ({
       data-testid={testid}
     >
       <DndContext
-        modifiers={[snapCenterToCursor, restrictModifiers]}
+        modifiers={[/*snapCenterToCursor, */restrictModifiers]}
+        onDragStart={(event) => {
+          setDraggingMonitor({...event.active.data.current} as IMonitorItem);
+        }} 
+        onDragMove={(event) => {
+          setIsOver(!!draggingMonitor && isOverLapping(monitors, {x: draggingMonitor.x + event.delta.x, y: draggingMonitor.y + event.delta.y}, draggingMonitor));
+
+          if (draggingMonitor){
+            const linked:IMonitorItem[] = [];
+            linked.push({...draggingMonitor, x: draggingMonitor.x + event.delta.x, y: draggingMonitor.y + event.delta.y});
+
+            for (const tm of linked){
+              for (const monitor of monitors){
+                if (linked.filter(item => item.connector === monitor.connector).length) continue;
+
+                if (isIntersect(tm, monitor)) linked.push(monitor);
+              }
+            }
+
+            setIsOver1(linked.length !== monitors.length);
+          }
+        }}
         onDragEnd={(props: DragEndEvent) => {
           const {
             delta,
             active: { data },
           } = props;
+          const selectedMonitor =  data.current as IMonitorItem;
+          //if (selectedMonitor.x + delta.x <= 0 || selectedMonitor.y + delta.y <= 0) return;
+
+          const finalCoordinates = {
+            x: selectedMonitor.x + delta.x,
+            y: selectedMonitor.y + delta.y
+          };
+
+
+          if (isOverLapping(monitors, finalCoordinates, selectedMonitor)) return;
+          if (isOver1) return;
+
           const updatedMonitors = rearrangeMonitors({
             selectedMonitor: data.current as IMonitorItem,
             monitors,
             coordinates: delta,
           });
 
-          setMonitors(updatedMonitors as IMonitorItem[]);
+          console.log(updatedMonitors);
+
+          //setMonitors(updatedMonitors as IMonitorItem[]);
         }}
       >
         <Box
@@ -124,6 +191,16 @@ const MonitorTopology: FC<IMonitorTopologyProps> = ({
               />
             );
           })}
+           <DragOverlay>
+              {draggingMonitor && <MonitorItem
+                isSelected={draggingMonitor.connector === selectMonitor}
+                key={draggingMonitor.connector}
+                monitorId={`${draggingMonitor.connector}`}
+                monitorItem={draggingMonitor}
+                status = {isOver || isOver1}
+              />
+              }
+          </DragOverlay>
         </Box>
       </DndContext>
     </Box>
